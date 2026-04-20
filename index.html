@@ -65,17 +65,17 @@ const STEPS = [
 ];
 
 const INIT = {
-  appName:'', appDesc:'', appEnv:'', bizContact:'', techContact:'', otherContacts:'',
+  appName:'', appDesc:'', appEnvs:[], bizContact:'', techContact:'', otherContacts:'',
   protocols:[],
   grantTypes:[], redirectUris:[''], logoutUri:'',
   scopes:[], customScopes:[''],
   claims:[{s:'givenName',m:'given_name'},{s:'surname',m:'family_name'},{s:'displayName',m:'name'},{s:'mail',m:''},{s:'',m:''}],
-  accessTL:'', idTL:'', refreshTL:'', rollingTL:'', clientAuth:'',
+  accessTL:'', idTL:'', refreshTL:'', rollingTL:'', clientAuths:[],
   acsUrl:'', entityId:'', issuer:'', nameid:'', samlLogout:'', samlSigned:'',
   samlClaims:[{s:'givenName',m:''},{s:'surname',m:''},{s:'displayName',m:''},{s:'',m:''}],
-  sessionType:'', sessionLT:'', ssoScope:'', sessionNote:'',
+  sessionType:'', sessionLT:'', ssoScope:'', sessionNote:'', sessionVisited:false, ssoSubstep:false,
   mfaEnabled:'', mfaMethods:[], mfaEnroll:'', mfaFreq:'',
-  extensions:[], notes:'',
+  extensions:[], notes:'', oidcClaimsVisited:false, samlClaimsVisited:false, oidcClaimsOpen:false, samlClaimsOpen:false,
 };
 
 // ─── Style tokens ─────────────────────────────────────────────────────────────
@@ -257,7 +257,7 @@ function App() {
       proto: () => S.protocols.length > 0,
       oidc: () => S.grantTypes.length > 0,
       saml: () => S.acsUrl.trim() && S.entityId.trim(),
-      session: () => true,
+      session: () => S.sessionVisited,
       mfa: () => S.mfaEnabled,
     };
     return checks[step.id]?.() ? 'done' : 'todo';
@@ -365,8 +365,12 @@ function App() {
     <div style={s.row2}>
       <div style={s.field}><label style={s.label}>App name<span style={s.req}>*</span></label>
         <input value={S.appName} placeholder="" onChange={e=>set('appName',e.target.value)} /></div>
-      <div style={s.field}><label style={s.label}>Environment</label>
-        <input value={S.appEnv} placeholder="DEV; TEST;  PRD" onChange={e=>set('appEnv',e.target.value)} /></div>
+      <div style={s.field}><label style={s.label}>Environments</label>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+          {['DEV','TEST1','TEST2','PROD'].map(env => (
+            <CI key={env} on={S.appEnvs.includes(env)} onClick={() => tArr('appEnvs',env)} label={env} />
+          ))}
+        </div></div>
     </div>
     <div style={s.field}><label style={s.label}>Description</label>
       <textarea value={S.appDesc} placeholder="Brief purpose of the application." onChange={e=>set('appDesc',e.target.value)} /></div>
@@ -396,7 +400,7 @@ function App() {
       {protoChosen && (
         <div style={{ marginTop:'1rem', padding:'1rem', background:'var(--bg2)', borderRadius:'var(--radius)', border:'0.5px solid var(--border)' }}>
           <div style={{ fontSize:12, color:'var(--text2)', marginBottom:10, fontWeight:500 }}>
-            Configuration sub-steps unlocked:
+            Configuration sub-steps:
           </div>
           <div style={s.cgroup}>
             {S.protocols.includes('oidc') && (
@@ -424,11 +428,8 @@ function App() {
         </div>
       )}
 
-      <div style={s.field}><label style={s.label}>Multi-tenant support</label>
-        <div style={s.cgroup}>
-          <CI on={S.multiTenant==='yes'} onClick={() => set('multiTenant','yes')} label="Yes — used across multiple tenants" />
-          <CI on={S.multiTenant==='no'}  onClick={() => set('multiTenant','no')}  label="No — single tenant" />
-        </div>
+      <div style={s.field}>
+        <CI on={!!S.multiTenant} onClick={() => set('multiTenant', S.multiTenant ? '' : 'yes')} label="Multi-tenant support?" desc="This application will be used across multiple B2C tenants." />
       </div>
     </>);
   }
@@ -458,10 +459,24 @@ function App() {
       <div style={s.cgrid2}>
         {['openid','profile','email','offline_access'].map(sc => <CI key={sc} on={S.scopes.includes(sc)} onClick={() => tArr('scopes',sc)} label={sc} />)}
       </div></div>
-    <div style={s.field}><label style={s.label}>Claims mapping</label>
-      <ClaimsTable claims={S.claims}
-        onChange={(i,f,v) => setS(p=>{const c=[...p.claims];c[i]={...c[i],[f]:v};return{...p,claims:c}})}
-        onAdd={() => setS(p=>({...p,claims:[...p.claims,{s:'',m:''}]}))} /></div>
+    <div style={s.field}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+        <label style={s.label}>Claims mapping</label>
+        <button onClick={() => setS(p=>({...p,oidcClaimsVisited:true,oidcClaimsOpen:!p.oidcClaimsOpen}))}
+          style={{ ...s.addLink, fontSize:12 }}>
+          {S.oidcClaimsOpen ? 'Collapse ▲' : 'Configure ▼'}
+        </button>
+      </div>
+      {!S.oidcClaimsOpen && <div style={{ fontSize:12, color:'var(--text3)', padding:'8px 10px', background:'var(--bg2)', borderRadius:'var(--radius)', border:'0.5px solid var(--border)' }}>
+        {S.claims.filter(c=>c.s||c.m).length} claim(s) configured — click Configure to edit
+      </div>}
+      {S.oidcClaimsOpen && <div style={{ border:'0.5px solid var(--info-border)', borderRadius:'var(--radius)', padding:'1rem', background:'var(--info-bg)' }}>
+        <div style={{ fontSize:11, color:'var(--info-text)', marginBottom:8 }}>Sub-configuration: OIDC claims</div>
+        <ClaimsTable claims={S.claims}
+          onChange={(i,f,v) => setS(p=>{const c=[...p.claims];c[i]={...c[i],[f]:v};return{...p,claims:c}})}
+          onAdd={() => setS(p=>({...p,claims:[...p.claims,{s:'',m:''}]}))} />
+      </div>}
+    </div>
     <div style={s.field}><label style={s.label}>Token lifetimes <span style={{ fontWeight:400, color:'var(--text3)' }}>(blank = default)</span></label>
       {[['Access token','accessTL','7200'],['ID token','idTL','7200'],['Refresh token','refreshTL','86400'],['Rolling refresh','rollingTL','86400']].map(([lbl,key,def]) => (
         <div key={key} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
@@ -472,8 +487,8 @@ function App() {
       ))}</div>
     <div style={s.field}><label style={s.label}>Client authentication</label>
       <div style={s.cgroup}>
-        <CI on={S.clientAuth==='secret'} onClick={() => set('clientAuth','secret')} label="Client secret" />
-        <CI on={S.clientAuth==='cert'}   onClick={() => set('clientAuth','cert')}   label="Client certificate" tag="Preferred" tagType="ok" />
+        <CI on={S.clientAuths.includes('secret')} onClick={() => tArr('clientAuths','secret')} label="Client secret" />
+        <CI on={S.clientAuths.includes('cert')}   onClick={() => tArr('clientAuths','cert')}   label="Client certificate" tag="Preferred" tagType="ok" />
       </div></div>
   </>);
 
@@ -486,11 +501,9 @@ function App() {
     <div style={s.row2}>
       <div style={s.field}><label style={s.label}>ACS URL<span style={s.req}>*</span></label>
         <input value={S.acsUrl} placeholder="https://app.example.com/saml/acs" onChange={e=>set('acsUrl',e.target.value)} /></div>
-      <div style={s.field}><label style={s.label}>Entity ID<span style={s.req}>*</span></label>
+      <div style={s.field}><label style={s.label}>Entity ID (Issuer)<span style={s.req}>*</span></label>
         <input value={S.entityId} placeholder="https://app.example.com" onChange={e=>set('entityId',e.target.value)} /></div>
     </div>
-    <div style={s.field}><label style={s.label}>Issuer</label>
-      <input value={S.issuer} onChange={e=>set('issuer',e.target.value)} /></div>
     <div style={s.field}><label style={s.label}>NameID format</label>
       <div style={s.cgrid2}>
         {['Persistent','Transient','EmailAddress','Unspecified'].map(f => <CI key={f} on={S.nameid===f} onClick={() => set('nameid',f)} label={f} />)}
@@ -499,17 +512,33 @@ function App() {
       <input value={S.samlLogout} onChange={e=>set('samlLogout',e.target.value)} /></div>
     <div style={s.field}><label style={s.label}>Assertion signing</label>
       <div style={s.cgroup}>
-        <CI on={S.samlSigned==='yes'} onClick={() => set('samlSigned','yes')} label="Yes — signed assertions" desc="Provide certificate in notes." />
+        <CI on={S.samlSigned==='yes'} onClick={() => set('samlSigned','yes')} label="Yes — signed assertions" />
         <CI on={S.samlSigned==='no'}  onClick={() => set('samlSigned','no')}  label="No" />
       </div></div>
-    <div style={s.field}><label style={s.label}>SAML claims mapping</label>
-      <ClaimsTable claims={S.samlClaims}
-        onChange={(i,f,v) => setS(p=>{const c=[...p.samlClaims];c[i]={...c[i],[f]:v};return{...p,samlClaims:c}})}
-        onAdd={() => setS(p=>({...p,samlClaims:[...p.samlClaims,{s:'',m:''}]}))} /></div>
+    <div style={s.field}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+        <label style={s.label}>SAML claims mapping</label>
+        <button onClick={() => setS(p=>({...p,samlClaimsVisited:true,samlClaimsOpen:!p.samlClaimsOpen}))}
+          style={{ ...s.addLink, fontSize:12 }}>
+          {S.samlClaimsOpen ? 'Collapse ▲' : 'Configure ▼'}
+        </button>
+      </div>
+      {!S.samlClaimsOpen && <div style={{ fontSize:12, color:'var(--text3)', padding:'8px 10px', background:'var(--bg2)', borderRadius:'var(--radius)', border:'0.5px solid var(--border)' }}>
+        {S.samlClaims.filter(c=>c.s||c.m).length} claim(s) configured — click Configure to edit
+      </div>}
+      {S.samlClaimsOpen && <div style={{ border:'0.5px solid var(--info-border)', borderRadius:'var(--radius)', padding:'1rem', background:'var(--info-bg)' }}>
+        <div style={{ fontSize:11, color:'var(--info-text)', marginBottom:8 }}>Sub-configuration: SAML claims</div>
+        <ClaimsTable claims={S.samlClaims}
+          onChange={(i,f,v) => setS(p=>{const c=[...p.samlClaims];c[i]={...c[i],[f]:v};return{...p,samlClaims:c}})}
+          onAdd={() => setS(p=>({...p,samlClaims:[...p.samlClaims,{s:'',m:''}]}))} />
+      </div>}
+    </div>
   </>);
 
   // ── SESSION ───────────────────────────────────────────────────────────────────
-  if (step.id === 'session') return wrap(<>
+  if (step.id === 'session') {
+    if (!S.sessionVisited) setS(p=>({...p, sessionVisited:true}));
+    return wrap(<>
     <SecHeader title="Session behavior" sub="Defaults apply if left blank." onIndex={() => setCur(0)} />
     <div style={s.field}><label style={s.label}>Session type</label>
       <div style={s.cgroup}>
@@ -521,15 +550,31 @@ function App() {
         <input style={{ width:90 }} value={S.sessionLT} placeholder="7200" onChange={e=>set('sessionLT',e.target.value)} />
         <span style={{ fontSize:11, color:'var(--text3)' }}>sec</span>
       </div></div>
-    <div style={s.field}><label style={s.label}>SSO scope</label>
-      <div style={s.cgrid2}>
-        {[['Tenant','Default','info','Shared SSO across all apps.'],['Application',null,null,'Scoped to this app only.'],['Policy',null,null,'Scoped to this policy only.'],['Suppressed',null,null,'No SSO — always re-authenticate.']].map(([v,tag,tt,desc]) =>
-          <CI key={v} on={S.ssoScope===v} onClick={() => set('ssoScope',v)} label={v} tag={tag} tagType={tt} desc={desc} />
-        )}
-      </div></div>
-    <div style={s.field}><label style={s.label}>Justification for override</label>
-      <textarea value={S.sessionNote} placeholder="Required if changing any default." onChange={e=>set('sessionNote',e.target.value)} /></div>
+    <div style={s.field}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+        <label style={s.label}>SSO behaviour</label>
+        <button onClick={() => setS(p=>({...p,ssoSubstep:!p.ssoSubstep}))}
+          style={{ ...s.addLink, fontSize:12 }}>
+          {S.ssoSubstep ? 'Use default ▲' : 'Custom SSO scope ▼'}
+        </button>
+      </div>
+      {!S.ssoSubstep && <div style={{ fontSize:12, color:'var(--text3)', padding:'8px 10px', background:'var(--bg2)', borderRadius:'var(--radius)', border:'0.5px solid var(--border)' }}>
+        Default: Tenant-wide SSO — click "Custom SSO scope" to override
+      </div>}
+      {S.ssoSubstep && <div style={{ border:'0.5px solid var(--info-border)', borderRadius:'var(--radius)', padding:'1rem', background:'var(--info-bg)' }}>
+        <div style={{ fontSize:11, color:'var(--info-text)', marginBottom:8 }}>Sub-configuration: SSO scope</div>
+        <div style={s.cgrid2}>
+          {[['Tenant','Default','info','Shared SSO across all apps.'],['Application',null,null,'Scoped to this app only.'],['Policy',null,null,'Scoped to this policy only.'],['Suppressed',null,null,'No SSO — always re-authenticate.']].map(([v,tag,tt,desc]) =>
+            <CI key={v} on={S.ssoScope===v} onClick={() => set('ssoScope',v)} label={v} tag={tag} tagType={tt} desc={desc} />
+          )}
+        </div>
+        <div style={{ marginTop:'0.75rem' }}><label style={s.label}>Justification</label>
+          <textarea value={S.sessionNote} placeholder="Required if changing the default." onChange={e=>set('sessionNote',e.target.value)} style={{ marginTop:4 }} />
+        </div>
+      </div>}
+    </div>
   </>);
+  }
 
   // ── MFA ───────────────────────────────────────────────────────────────────────
   if (step.id === 'mfa') return wrap(<>
@@ -576,7 +621,7 @@ function App() {
         {incomplete.length ? <><strong>Incomplete:</strong> {incomplete.map(st=>st.label).join(', ')}</> : 'All sections complete — ready to submit.'}
       </div>
       <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:'1rem' }}>
-        {[['App name',S.appName],['Environments',S.appEnv],['Protocol(s)',S.protocols.map(p=>p.toUpperCase()).join(', ')],
+        {[['App name',S.appName],['Environments',S.appEnvs.join(', ')],['Protocol(s)',S.protocols.map(p=>p.toUpperCase()).join(', ')],
           ...(S.protocols.includes('oidc')?[['Grant types',S.grantTypes.join(', ')],['Client auth',S.clientAuth]]:[]),
           ...(S.protocols.includes('saml')?[['ACS URL',S.acsUrl]]:[]),
           ['SSO scope',S.ssoScope||'Default (tenant)'],['MFA',S.mfaEnabled]].map(([l,v]) => (
