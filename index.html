@@ -364,14 +364,14 @@ function App() {
     <SecHeader title="Application information" sub="Identify the application and its owners." onIndex={() => setCur(0)} />
     <div style={s.row2}>
       <div style={s.field}><label style={s.label}>App name<span style={s.req}>*</span></label>
-        <input value={S.appName} placeholder="e.g. ICON LMS Portal" onChange={e=>set('appName',e.target.value)} /></div>
+        <input value={S.appName} placeholder="" onChange={e=>set('appName',e.target.value)} /></div>
       <div style={s.field}><label style={s.label}>Environment</label>
-        <input value={S.appEnv} placeholder="DEV / PRD" onChange={e=>set('appEnv',e.target.value)} /></div>
+        <input value={S.appEnv} placeholder="DEV; TEST;  PRD" onChange={e=>set('appEnv',e.target.value)} /></div>
     </div>
     <div style={s.field}><label style={s.label}>Description</label>
       <textarea value={S.appDesc} placeholder="Brief purpose of the application." onChange={e=>set('appDesc',e.target.value)} /></div>
     <div style={s.field}><label style={s.label}>Business contact(s)</label>
-      <input value={S.bizContact} placeholder="Comma-separated names or emails" onChange={e=>set('bizContact',e.target.value)} />
+      <input value={S.bizContact} placeholder="Comma-separated" onChange={e=>set('bizContact',e.target.value)} />
       <div style={s.hint}>Business owner — responsible for the application.</div></div>
     <div style={s.field}><label style={s.label}>Technical / SME contact(s)<span style={s.req}>*</span></label>
       <input value={S.techContact} placeholder="Comma-separated" onChange={e=>set('techContact',e.target.value)} />
@@ -388,8 +388,8 @@ function App() {
       <SecHeader title="Protocol selection" sub="Choose your protocol(s). Sub-steps will appear below." onIndex={() => setCur(0)} />
       <div style={s.field}><label style={s.label}>Protocol(s) required<span style={s.req}>*</span></label>
         <div style={s.cgroup}>
-          <CI on={S.protocols.includes('oidc')} onClick={() => tArr('protocols','oidc')} label="OpenID Connect (OIDC) / OAuth 2.0" tag="Recommended" tagType="ok" desc="Web apps, SPAs, mobile, APIs." />
-          <CI on={S.protocols.includes('saml')} onClick={() => tArr('protocols','saml')} label="SAML 2.0" tag="Legacy / enterprise" tagType="info" desc="On-premises and legacy enterprise apps." />
+          <CI on={S.protocols.includes('oidc')} onClick={() => tArr('protocols','oidc')} label="OpenID Connect / OAuth 2.0" tag="OIDC" tagType="ok" desc="Web apps, SPAs, mobile, APIs." />
+          <CI on={S.protocols.includes('saml')} onClick={() => tArr('protocols','saml')} label="SAML 2.0" tag="SAML" tagType="info" desc="On-premises and legacy enterprise apps." />
         </div>
       </div>
 
@@ -516,9 +516,9 @@ function App() {
         <CI on={S.sessionType==='rolling'}  onClick={() => set('sessionType','rolling')}  label="Rolling session" tag="Default" tagType="info" desc="Expiry extends after each valid request." />
         <CI on={S.sessionType==='absolute'} onClick={() => set('sessionType','absolute')} label="Absolute session" desc="Fixed expiry regardless of activity." />
       </div></div>
-    <div style={s.field}><label style={s.label}>Session lifetime (default: 900 sec)</label>
+    <div style={s.field}><label style={s.label}>Session lifetime (default: 7200 sec)</label>
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <input style={{ width:90 }} value={S.sessionLT} placeholder="900" onChange={e=>set('sessionLT',e.target.value)} />
+        <input style={{ width:90 }} value={S.sessionLT} placeholder="7200" onChange={e=>set('sessionLT',e.target.value)} />
         <span style={{ fontSize:11, color:'var(--text3)' }}>sec</span>
       </div></div>
     <div style={s.field}><label style={s.label}>SSO scope</label>
@@ -576,7 +576,7 @@ function App() {
         {incomplete.length ? <><strong>Incomplete:</strong> {incomplete.map(st=>st.label).join(', ')}</> : 'All sections complete — ready to submit.'}
       </div>
       <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:'1rem' }}>
-        {[['App name',S.appName],['Environment',S.appEnv],['Protocol(s)',S.protocols.map(p=>p.toUpperCase()).join(', ')],
+        {[['App name',S.appName],['Environments',S.appEnv],['Protocol(s)',S.protocols.map(p=>p.toUpperCase()).join(', ')],
           ...(S.protocols.includes('oidc')?[['Grant types',S.grantTypes.join(', ')],['Client auth',S.clientAuth]]:[]),
           ...(S.protocols.includes('saml')?[['ACS URL',S.acsUrl]]:[]),
           ['SSO scope',S.ssoScope||'Default (tenant)'],['MFA',S.mfaEnabled]].map(([l,v]) => (
