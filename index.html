@@ -413,8 +413,8 @@ function App() {
     <div style={s.field}><label style={s.label}>Grant types<span style={s.req}>*</span></label>
       <div style={s.cgroup}>
         <CI on={S.grantTypes.includes('authcode')} onClick={() => tArr('grantTypes','authcode')} label="Authorization Code Flow" desc="Server-side web apps with a back-end." />
-        <CI on={S.grantTypes.includes('pkce')}     onClick={() => tArr('grantTypes','pkce')}     label="PKCE" tag="Public clients" tagType="info" desc="SPAs and mobile apps. No client secret stored." />
-        <CI on={S.grantTypes.includes('cc')}       onClick={() => tArr('grantTypes','cc')}       label="Client Credentials" tag="M2M" tagType="info" desc="App authenticates without user interaction." />
+        <CI on={S.grantTypes.includes('pkce')}     onClick={() => tArr('grantTypes','pkce')}     label="PKCE" tagType="info" desc="SPAs and mobile apps. No client secret stored." />
+        <CI on={S.grantTypes.includes('cc')}       onClick={() => tArr('grantTypes','cc')}       label="Client Credentials" tagType="info" desc="App authenticates without user interaction." />
         <div style={{ borderTop:'0.5px solid var(--border)', margin:'4px 0' }} />
         <CI on={S.grantTypes.includes('implicit')} onClick={() => tArr('grantTypes','implicit')} label="Implicit Flow" tag="Deprecated" tagType="bad" desc="Will be removed in OAuth 2.1. Use PKCE instead." />
         <CI on={S.grantTypes.includes('ropc')}     onClick={() => tArr('grantTypes','ropc')}     label="ROPC" tag="Not recommended" tagType="bad" desc="Users type credentials directly into the app." />
