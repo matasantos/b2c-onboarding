@@ -56,7 +56,7 @@ const { useState } = React;
 const STEPS = [
   { id: 'index',   label: 'Overview',          top: true  },
   { id: 'app',     label: 'Application info',  top: true,  num: '01' },
-  { id: 'proto',   label: 'Protocol',          top: true,  num: '02' },
+  { id: 'proto',   label: 'Protocol',          top: true,  num: '02' },  // Next → routes to oidc/saml based on selection
   { id: 'oidc',    label: 'OIDC / OAuth 2.0',  sub: true,  num: '03', cond: 'oidc' },
   { id: 'saml',    label: 'SAML 2.0',          sub: true,  num: '04', cond: 'saml' },
   { id: 'session', label: 'Session',           top: true,  num: '05' },
@@ -75,7 +75,7 @@ const INIT = {
   samlClaims:[{s:'givenName',m:''},{s:'surname',m:''},{s:'displayName',m:''},{s:'',m:''}],
   sessionType:'', sessionLT:'', ssoScope:'', sessionNote:'', sessionVisited:false, ssoSubstep:false,
   mfaEnabled:'', mfaMethods:[], mfaEnroll:'', mfaFreq:'',
-  extensions:[], notes:'', oidcClaimsVisited:false, samlClaimsVisited:false, oidcClaimsOpen:false, samlClaimsOpen:false,
+  extensions:[], notes:'', oidcClaimsVisited:false, samlClaimsVisited:false, oidcClaimsOpen:false, samlClaimsOpen:false, scopesOpen:false, tokenLTOpen:false,
 };
 
 // ─── Style tokens ─────────────────────────────────────────────────────────────
@@ -362,18 +362,16 @@ function App() {
   // ── APP INFO ─────────────────────────────────────────────────────────────────
   if (step.id === 'app') return wrap(<>
     <SecHeader title="Application information" sub="Identify the application and its owners." onIndex={() => setCur(0)} />
-    <div style={s.row2}>
-      <div style={s.field}><label style={s.label}>App name<span style={s.req}>*</span></label>
-        <input value={S.appName} placeholder="" onChange={e=>set('appName',e.target.value)} /></div>
-      <div style={s.field}><label style={s.label}>Environments</label>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-          {['DEV','TEST1','TEST2','PROD'].map(env => (
-            <CI key={env} on={S.appEnvs.includes(env)} onClick={() => tArr('appEnvs',env)} label={env} />
-          ))}
-        </div></div>
-    </div>
     <div style={s.field}><label style={s.label}>Description</label>
       <textarea value={S.appDesc} placeholder="Brief purpose of the application." onChange={e=>set('appDesc',e.target.value)} /></div>
+    <div style={s.field}><label style={s.label}>App name<span style={s.req}>*</span></label>
+      <input value={S.appName} placeholder="" onChange={e=>set('appName',e.target.value)} /></div>
+    <div style={s.field}><label style={s.label}>Environments</label>
+      <div style={{ display:'flex', gap:8 }}>
+        {['DEV','UAT','PROD'].map(env => (
+          <CI key={env} on={S.appEnvs.includes(env)} onClick={() => tArr('appEnvs',env)} label={env} />
+        ))}
+      </div></div>
     <div style={s.field}><label style={s.label}>Business contact(s)</label>
       <input value={S.bizContact} placeholder="Comma-separated" onChange={e=>set('bizContact',e.target.value)} />
       <div style={s.hint}>Business owner — responsible for the application.</div></div>
@@ -389,7 +387,7 @@ function App() {
   if (step.id === 'proto') {
     const protoChosen = S.protocols.length > 0;
     return wrap(<>
-      <SecHeader title="Protocol selection" sub="Choose your protocol(s). Sub-steps will appear below." onIndex={() => setCur(0)} />
+      <SecHeader title="Protocol selection" sub="Choose your protocol(s). Configuration pages will follow." onIndex={() => setCur(0)} />
       <div style={s.field}><label style={s.label}>Protocol(s) required<span style={s.req}>*</span></label>
         <div style={s.cgroup}>
           <CI on={S.protocols.includes('oidc')} onClick={() => tArr('protocols','oidc')} label="OpenID Connect / OAuth 2.0" tag="OIDC" tagType="ok" desc="Web apps, SPAs, mobile, APIs." />
@@ -398,33 +396,8 @@ function App() {
       </div>
 
       {protoChosen && (
-        <div style={{ marginTop:'1rem', padding:'1rem', background:'var(--bg2)', borderRadius:'var(--radius)', border:'0.5px solid var(--border)' }}>
-          <div style={{ fontSize:12, color:'var(--text2)', marginBottom:10, fontWeight:500 }}>
-            Configuration sub-steps:
-          </div>
-          <div style={s.cgroup}>
-            {S.protocols.includes('oidc') && (
-              <div onClick={() => setCur(STEPS.findIndex(st=>st.id==='oidc'))} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', background:'var(--info-bg)', border:'0.5px solid var(--info-border)', borderRadius:'var(--radius)', cursor:'pointer' }}>
-                <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--blue)' }} />
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:500, color:'var(--info-text)' }}>03 — OIDC / OAuth 2.0 configuration</div>
-                  <div style={{ fontSize:11, color:'var(--text2)' }}>Grant types, redirect URIs, scopes, claims, token lifetimes</div>
-                </div>
-                <span style={{ fontSize:12, color:'var(--info-text)' }}>Configure →</span>
-              </div>
-            )}
-            {S.protocols.includes('saml') && (
-              <div onClick={() => setCur(STEPS.findIndex(st=>st.id==='saml'))} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', background:'var(--info-bg)', border:'0.5px solid var(--info-border)', borderRadius:'var(--radius)', cursor:'pointer' }}>
-                <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--blue)' }} />
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:500, color:'var(--info-text)' }}>04 — SAML 2.0 configuration</div>
-                  <div style={{ fontSize:11, color:'var(--text2)' }}>ACS URL, Entity ID, NameID format, assertions, claims</div>
-                </div>
-                <span style={{ fontSize:12, color:'var(--info-text)' }}>Configure →</span>
-              </div>
-            )}
-          </div>
-          <div style={{ fontSize:11, color:'var(--text3)', marginTop:8 }}>You can also continue with Next → and fill these in sequence.</div>
+        <div style={{ marginTop:'0.75rem', padding:'10px 12px', background:'var(--bg2)', borderRadius:'var(--radius)', border:'0.5px solid var(--border)', fontSize:12, color:'var(--text3)' }}>
+          Next → will take you through the configuration for {S.protocols.map(p=>p.toUpperCase()).join(' and ')}.
         </div>
       )}
 
@@ -436,17 +409,15 @@ function App() {
 
   // ── OIDC ─────────────────────────────────────────────────────────────────────
   if (step.id === 'oidc') return wrap(<>
-    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:'0.5rem' }}>
-      <div style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'var(--info-bg)', color:'var(--info-text)', fontWeight:500 }}>SUB-STEP of 02</div>
-    </div>
     <SecHeader title="OIDC / OAuth 2.0 configuration" sub="Grant types, redirect URIs, scopes, claims, token lifetimes." onIndex={() => setCur(0)} />
     <div style={s.field}><label style={s.label}>Grant types<span style={s.req}>*</span></label>
       <div style={s.cgroup}>
-        <CI on={S.grantTypes.includes('authcode')} onClick={() => tArr('grantTypes','authcode')} label="Authorization Code Flow" tag="Recommended" tagType="ok" desc="Web apps with a server-side back-end." />
-        <CI on={S.grantTypes.includes('pkce')}     onClick={() => tArr('grantTypes','pkce')}     label="PKCE" tag="SPAs / Mobile" tagType="info" desc="Required for public clients." />
+        <CI on={S.grantTypes.includes('authcode')} onClick={() => tArr('grantTypes','authcode')} label="Authorization Code Flow" desc="Server-side web apps with a back-end." />
+        <CI on={S.grantTypes.includes('pkce')}     onClick={() => tArr('grantTypes','pkce')}     label="PKCE" tag="Public clients" tagType="info" desc="SPAs and mobile apps. No client secret stored." />
+        <CI on={S.grantTypes.includes('cc')}       onClick={() => tArr('grantTypes','cc')}       label="Client Credentials" tag="M2M" tagType="info" desc="App authenticates without user interaction." />
+        <div style={{ borderTop:'0.5px solid var(--border)', margin:'4px 0' }} />
         <CI on={S.grantTypes.includes('implicit')} onClick={() => tArr('grantTypes','implicit')} label="Implicit Flow" tag="Deprecated" tagType="bad" desc="Will be removed in OAuth 2.1. Use PKCE instead." />
         <CI on={S.grantTypes.includes('ropc')}     onClick={() => tArr('grantTypes','ropc')}     label="ROPC" tag="Not recommended" tagType="bad" desc="Users type credentials directly into the app." />
-        <CI on={S.grantTypes.includes('cc')}       onClick={() => tArr('grantTypes','cc')}       label="Client Credentials" tag="M2M" tagType="info" desc="App authenticates without user interaction." />
       </div></div>
     <div style={s.field}><label style={s.label}>Redirect URIs</label>
       <UriList uris={S.redirectUris} placeholder="https://app.example.com/callback"
@@ -455,10 +426,32 @@ function App() {
         onRemove={i => setS(p=>{const u=p.redirectUris.filter((_,j)=>j!==i);return{...p,redirectUris:u.length?u:['']}})} /></div>
     <div style={s.field}><label style={s.label}>Logout URI</label>
       <input value={S.logoutUri} placeholder="https://app.example.com/signout" onChange={e=>set('logoutUri',e.target.value)} /></div>
-    <div style={s.field}><label style={s.label}>Scopes</label>
-      <div style={s.cgrid2}>
-        {['openid','profile','email','offline_access'].map(sc => <CI key={sc} on={S.scopes.includes(sc)} onClick={() => tArr('scopes',sc)} label={sc} />)}
-      </div></div>
+    <div style={s.field}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+        <label style={s.label}>Scopes</label>
+        <button onClick={() => setS(p=>({...p,scopesOpen:!p.scopesOpen}))} style={{ ...s.addLink, fontSize:12 }}>
+          {S.scopesOpen ? 'Collapse ▲' : 'Configure ▼'}
+        </button>
+      </div>
+      {!S.scopesOpen && <div style={{ fontSize:12, color:'var(--text3)', padding:'8px 10px', background:'var(--bg2)', borderRadius:'var(--radius)', border:'0.5px solid var(--border)' }}>
+        {S.scopes.length > 0 ? S.scopes.join(', ') : 'None selected — click Configure to add scopes'}
+      </div>}
+      {S.scopesOpen && <div style={{ border:'0.5px solid var(--info-border)', borderRadius:'var(--radius)', padding:'1rem', background:'var(--info-bg)' }}>
+        <div style={{ fontSize:11, color:'var(--info-text)', marginBottom:8 }}>Sub-configuration: scopes</div>
+        <div style={s.cgrid2}>
+          {['openid','profile','email','offline_access'].map(sc => <CI key={sc} on={S.scopes.includes(sc)} onClick={() => tArr('scopes',sc)} label={sc} />)}
+        </div>
+        <div style={{ marginTop:8 }}><label style={s.label}>Custom scopes</label>
+          {S.customScopes.map((sc,i) => (
+            <div key={i} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:5, marginTop:4 }}>
+              <input value={sc} placeholder="api://myapp/read" onChange={e => setS(p=>{const a=[...p.customScopes];a[i]=e.target.value;return{...p,customScopes:a}})} />
+              <button onClick={() => setS(p=>{const a=p.customScopes.filter((_,j)=>j!==i);return{...p,customScopes:a.length?a:['']}})} style={{ background:'none', border:'none', color:'var(--text3)', cursor:'pointer', fontSize:18, lineHeight:1 }}>×</button>
+            </div>
+          ))}
+          <button onClick={() => setS(p=>({...p,customScopes:[...p.customScopes,'']}))} style={s.addLink}>+ Add</button>
+        </div>
+      </div>}
+    </div>
     <div style={s.field}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
         <label style={s.label}>Claims mapping</label>
@@ -477,14 +470,29 @@ function App() {
           onAdd={() => setS(p=>({...p,claims:[...p.claims,{s:'',m:''}]}))} />
       </div>}
     </div>
-    <div style={s.field}><label style={s.label}>Token lifetimes <span style={{ fontWeight:400, color:'var(--text3)' }}>(blank = default)</span></label>
-      {[['Access token','accessTL','7200'],['ID token','idTL','7200'],['Refresh token','refreshTL','86400'],['Rolling refresh','rollingTL','86400']].map(([lbl,key,def]) => (
-        <div key={key} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-          <label style={{ fontSize:12, color:'var(--text2)', minWidth:180, flexShrink:0 }}>{lbl} (default {def}s)</label>
-          <input style={{ width:80 }} value={S[key]} placeholder={def} onChange={e=>set(key,e.target.value)} />
-          <span style={{ fontSize:11, color:'var(--text3)' }}>sec</span>
-        </div>
-      ))}</div>
+    <div style={s.field}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+        <label style={s.label}>Token lifetimes <span style={{ fontWeight:400, color:'var(--text3)' }}>(blank = default)</span></label>
+        <button onClick={() => setS(p=>({...p,tokenLTOpen:!p.tokenLTOpen}))} style={{ ...s.addLink, fontSize:12 }}>
+          {S.tokenLTOpen ? 'Collapse ▲' : 'Configure ▼'}
+        </button>
+      </div>
+      {!S.tokenLTOpen && <div style={{ fontSize:12, color:'var(--text3)', padding:'8px 10px', background:'var(--bg2)', borderRadius:'var(--radius)', border:'0.5px solid var(--border)' }}>
+        {[['accessTL','Access','7200'],['idTL','ID','7200'],['refreshTL','Refresh','86400'],['rollingTL','Rolling','86400']].some(([k])=>S[k])
+          ? [['accessTL','Access','7200'],['idTL','ID','7200'],['refreshTL','Refresh','86400'],['rollingTL','Rolling','86400']].filter(([k])=>S[k]).map(([k,l,d])=>`${l}: ${S[k]}s`).join(' · ')
+          : 'All defaults — click Configure to override'}
+      </div>}
+      {S.tokenLTOpen && <div style={{ border:'0.5px solid var(--info-border)', borderRadius:'var(--radius)', padding:'1rem', background:'var(--info-bg)' }}>
+        <div style={{ fontSize:11, color:'var(--info-text)', marginBottom:8 }}>Sub-configuration: token lifetimes</div>
+        {[['Access token','accessTL','7200'],['ID token','idTL','7200'],['Refresh token','refreshTL','86400'],['Rolling refresh','rollingTL','86400']].map(([lbl,key,def]) => (
+          <div key={key} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+            <label style={{ fontSize:12, color:'var(--text2)', minWidth:180, flexShrink:0 }}>{lbl} (default {def}s)</label>
+            <input style={{ width:80 }} value={S[key]} placeholder={def} onChange={e=>set(key,e.target.value)} />
+            <span style={{ fontSize:11, color:'var(--text3)' }}>sec</span>
+          </div>
+        ))}
+      </div>}
+    </div>
     <div style={s.field}><label style={s.label}>Client authentication</label>
       <div style={s.cgroup}>
         <CI on={S.clientAuths.includes('secret')} onClick={() => tArr('clientAuths','secret')} label="Client secret" />
@@ -494,9 +502,6 @@ function App() {
 
   // ── SAML ─────────────────────────────────────────────────────────────────────
   if (step.id === 'saml') return wrap(<>
-    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:'0.5rem' }}>
-      <div style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'var(--info-bg)', color:'var(--info-text)', fontWeight:500 }}>SUB-STEP of 02</div>
-    </div>
     <SecHeader title="SAML 2.0 configuration" sub="Assertions, endpoints, NameID format, claims." onIndex={() => setCur(0)} />
     <div style={s.row2}>
       <div style={s.field}><label style={s.label}>ACS URL<span style={s.req}>*</span></label>
@@ -506,15 +511,13 @@ function App() {
     </div>
     <div style={s.field}><label style={s.label}>NameID format</label>
       <div style={s.cgrid2}>
-        {['Persistent','Transient','EmailAddress','Unspecified'].map(f => <CI key={f} on={S.nameid===f} onClick={() => set('nameid',f)} label={f} />)}
+        {['EmailAddress','Persistent','Transient','Unspecified'].map(f => <CI key={f} on={S.nameid===f} onClick={() => set('nameid',f)} label={f} />)}
       </div></div>
     <div style={s.field}><label style={s.label}>Logout URL</label>
       <input value={S.samlLogout} onChange={e=>set('samlLogout',e.target.value)} /></div>
-    <div style={s.field}><label style={s.label}>Assertion signing</label>
-      <div style={s.cgroup}>
-        <CI on={S.samlSigned==='yes'} onClick={() => set('samlSigned','yes')} label="Yes — signed assertions" />
-        <CI on={S.samlSigned==='no'}  onClick={() => set('samlSigned','no')}  label="No" />
-      </div></div>
+    <div style={s.field}>
+      <CI on={!!S.samlSigned} onClick={() => set('samlSigned', S.samlSigned ? '' : 'yes')} label="Signed assertions" desc="SAML assertions will be signed with a certificate. Attach certificate in notes if yes." />
+    </div>
     <div style={s.field}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
         <label style={s.label}>SAML claims mapping</label>
@@ -579,11 +582,9 @@ function App() {
   // ── MFA ───────────────────────────────────────────────────────────────────────
   if (step.id === 'mfa') return wrap(<>
     <SecHeader title="MFA & extensions" sub="" onIndex={() => setCur(0)} />
-    <div style={s.field}><label style={s.label}>MFA requirement</label>
-      <div style={s.cgroup}>
-        <CI on={S.mfaEnabled==='yes'} onClick={() => set('mfaEnabled','yes')} label="Enabled" />
-        <CI on={S.mfaEnabled==='no'}  onClick={() => set('mfaEnabled','no')}  label="Disabled" />
-      </div></div>
+    <div style={s.field}>
+      <CI on={S.mfaEnabled==='yes'} onClick={() => set('mfaEnabled', S.mfaEnabled==='yes' ? '' : 'yes')} label="Require MFA for this application" desc="Users will be prompted for a second factor on sign-in." />
+    </div>
     {S.mfaEnabled==='yes' && <>
       <div style={s.field}><label style={s.label}>MFA method(s)</label>
         <div style={s.cgroup}>
